@@ -8,7 +8,6 @@ using namespace std;
 
 // 配置参数 
 #define TEST_TIMES 10
-#define N 1024
 
 // 高精度计时函数
 double get_time() {
@@ -75,92 +74,133 @@ long long sum_recursive_wrapper(int *arr, int n) {
 }
 
 int main() {
-    int *mat = (int*)malloc(N * N * sizeof(int));
-    int *vec = (int*)malloc(N * sizeof(int));
-    int *res_naive = (int*)malloc(N * sizeof(int));
-    int *res_opt = (int*)malloc(N * sizeof(int));
-    int *arr = (int*)malloc(N * sizeof(int));
-
-    for (int i = 0; i < N; i++) {
-        vec[i] = 1;
-        arr[i] = i;
-        for (int j = 0; j < N; j++) {
-            mat[i * N + j] = 1;
+    // 矩阵测试规模
+    int mat_sizes[] = {128, 256, 512, 1024, 2048, 4096};
+    int num_mat_sizes = sizeof(mat_sizes) / sizeof(mat_sizes[0]);
+    
+    // 数组求和测试规模
+    int arr_sizes[] = {1000, 10000, 100000, 500000, 1000000, 5000000};
+    int num_arr_sizes = sizeof(arr_sizes) / sizeof(arr_sizes[0]);
+    
+    cout << "==================== 实验一 性能测试报告 ====================" << endl;
+    cout << "重复测试次数：" << TEST_TIMES << endl << endl;
+    
+    // 矩阵列-向量内积测试
+    cout << "================ 矩阵列-向量内积性能测试 ================" << endl;
+    cout << left << setw(12) << "矩阵规模" 
+         << setw(16) << "平凡算法(s)" 
+         << setw(16) << "Cache优化(s)" 
+         << setw(12) << "加速比" 
+         << setw(10) << "正确性" << endl;
+    cout << string(66, '-') << endl;
+    
+    for (int idx = 0; idx < num_mat_sizes; idx++) {
+        int N = mat_sizes[idx];
+        
+        // 动态分配内存
+        int *mat = (int*)malloc(N * N * sizeof(int));
+        int *vec = (int*)malloc(N * sizeof(int));
+        int *res_naive = (int*)malloc(N * sizeof(int));
+        int *res_opt = (int*)malloc(N * sizeof(int));
+        
+        // 初始化数据
+        for (int i = 0; i < N; i++) {
+            vec[i] = 1;
+            for (int j = 0; j < N; j++) {
+                mat[i * N + j] = 1;
+            }
         }
-    }
-
-    cout << "==================== 实验一 测试结果 ====================" << endl;
-    cout << "测试规模:N = " << N << "，重复测试次数：" << TEST_TIMES << endl << endl;
-
-    // 矩阵
-    cout << "---------------- 矩阵列-向量内积 性能测试 ----------------" << endl;
-    double t_naive = 0, t_opt = 0;
-
-    for (int t = 0; t < TEST_TIMES; t++) {
-        double start = get_time();
-        mat_vec_col_naive(mat, vec, res_naive, N);
-        double end = get_time();
-        t_naive += end - start;
-
-        start = get_time();
-        mat_vec_col_opt(mat, vec, res_opt, N);
-        end = get_time();
-        t_opt += end - start;
-    }
-    t_naive /= TEST_TIMES;
-    t_opt /= TEST_TIMES;
-
-    int correct = 1;
-    for (int i = 0; i < N; i++) {
-        if (res_naive[i] != res_opt[i] || res_naive[i] != N) {
-            correct = 0;
-            break;
+        
+        // 测试两种算法.
+        double t_naive = 0, t_opt = 0;
+        for (int t = 0; t < TEST_TIMES; t++) {
+            double start = get_time();
+            mat_vec_col_naive(mat, vec, res_naive, N);
+            double end = get_time();
+            t_naive += end - start;
+            
+            start = get_time();
+            mat_vec_col_opt(mat, vec, res_opt, N);
+            end = get_time();
+            t_opt += end - start;
         }
+        t_naive /= TEST_TIMES;
+        t_opt /= TEST_TIMES;
+        
+        bool correct = true;
+        for (int i = 0; i < N; i++) {
+            if (res_naive[i] != res_opt[i] || res_naive[i] != N) {
+                correct = false;
+                break;
+            }
+        }
+        
+        cout << left << setw(12) << N 
+             << setw(16) << fixed << setprecision(6) << t_naive
+             << setw(16) << fixed << setprecision(6) << t_opt
+             << setw(12) << fixed << setprecision(2) << (t_naive / t_opt)
+             << setw(10) << (correct ? "✓" : "✗") << endl;
+        
+        free(mat);
+        free(vec);
+        free(res_naive);
+        free(res_opt);
     }
-
-    cout << "平凡算法平均耗时：" << fixed << setprecision(6) << t_naive << "s" << endl;
-    cout << "Cache优化平均耗时:" << fixed << setprecision(6) << t_opt << "s" << endl;
-    cout << "性能提升" << fixed << setprecision(2) << t_naive / t_opt << " 倍" << endl;
-    cout << "结果" << (correct ? "正确" : "错误") << endl << endl;
-
-    // 数组求和
-    cout << "---------------- 数组求和 性能测试 ----------------" << endl;
-    double t_chain = 0, t_2way = 0, t_rec = 0;
-    long long sum_chain, sum_2way, sum_rec;
-
-    for (int t = 0; t < TEST_TIMES; t++) {
-        double start = get_time();
-        sum_chain = sum_chain_naive(arr, N);
-        t_chain += get_time() - start;
-
-        start = get_time();
-        sum_2way = sum_chain_2way(arr, N);
-        t_2way += get_time() - start;
-
-        start = get_time();
-        sum_rec = sum_recursive_wrapper(arr, N);
-        t_rec += get_time() - start;
+    
+    //  第二部分：数组求和测试
+    cout << endl << "================ 数组求和性能测试 ================" << endl;
+    cout << left << setw(14) << "数组长度" 
+         << setw(16) << "平凡累加(s)" 
+         << setw(16) << "两路链式(s)" 
+         << setw(16) << "递归两路(s)"
+         << setw(12) << "加速比" << endl;
+    cout << string(74, '-') << endl;
+    
+    for (int idx = 0; idx < num_arr_sizes; idx++) {
+        int n = arr_sizes[idx];
+        
+        // 动态分配数组
+        int *arr = (int*)malloc(n * sizeof(int));
+        
+        // 初始化
+        for (int i = 0; i < n; i++) {
+            arr[i] = i;
+        }
+        
+        double t_chain = 0, t_2way = 0, t_rec = 0;
+        long long sum_chain, sum_2way, sum_rec;
+        
+        for (int t = 0; t < TEST_TIMES; t++) {
+            double start = get_time();
+            sum_chain = sum_chain_naive(arr, n);
+            t_chain += get_time() - start;
+            
+            start = get_time();
+            sum_2way = sum_chain_2way(arr, n);
+            t_2way += get_time() - start;
+            
+            start = get_time();
+            sum_rec = sum_recursive_wrapper(arr, n);
+            t_rec += get_time() - start;
+        }
+        
+        t_chain /= TEST_TIMES;
+        t_2way /= TEST_TIMES;
+        t_rec /= TEST_TIMES;
+        
+        long long expect = (long long)n * (n - 1) / 2;
+        bool correct = (sum_chain == expect && sum_2way == expect && sum_rec == expect);
+        
+        cout << left << setw(14) << n 
+             << setw(16) << fixed << setprecision(6) << t_chain
+             << setw(16) << fixed << setprecision(6) << t_2way
+             << setw(16) << fixed << setprecision(6) << t_rec
+             << setw(12) << fixed << setprecision(2) << (t_chain / t_2way)
+             << (correct ? "✓" : "✗") << endl;
+        
+        free(arr);
     }
-
-    t_chain /= TEST_TIMES;
-    t_2way /= TEST_TIMES;
-    t_rec /= TEST_TIMES;
-
-    long long expect = (long long)N * (N-1) / 2;
-    correct = (sum_chain == expect && sum_2way == expect && sum_rec == expect);
-
-    cout << "平凡累加耗时：" << fixed << setprecision(6) << t_chain << "s 结果：" << sum_chain << endl;
-    cout << "两路链式耗时：" << fixed << setprecision(6) << t_2way << "s 结果：" << sum_2way << endl;
-    cout << "递归两路耗时：" << fixed << setprecision(6) << t_rec << "s 结果：" << sum_rec << endl;
-    cout << "性能提升" << fixed << setprecision(2) << t_chain / t_2way << " 倍" << endl;
-    cout << "结果" << (correct ? "正确" : "错误") << endl << endl;
-
-    free(mat);
-    free(vec);
-    free(res_naive);
-    free(res_opt);
-    free(arr);
-
-    cout << "==================== 测试完成 ====================" << endl;
+    
+    cout << endl << "==================== 测试完成 ====================" << endl;
     return 0;
 }
