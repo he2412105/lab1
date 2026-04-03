@@ -16,7 +16,9 @@ double get_time() {
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
 }
 
-// 矩阵列-向量内积：平凡算法（逐列访问）
+// 矩阵列-向量内积 
+
+// 平凡算法（逐列访问）
 void mat_vec_col_naive(int *mat, int *vec, int *res, int n) {
     for (int j = 0; j < n; j++) {
         int sum = 0;
@@ -27,7 +29,7 @@ void mat_vec_col_naive(int *mat, int *vec, int *res, int n) {
     }
 }
 
-// 矩阵列-向量内积：Cache 优化算法
+// Cache 优化算法
 void mat_vec_col_opt(int *mat, int *vec, int *res, int n) {
     memset(res, 0, n * sizeof(int));
     for (int i = 0; i < n; i++) {
@@ -38,7 +40,8 @@ void mat_vec_col_opt(int *mat, int *vec, int *res, int n) {
     }
 }
 
-// 数组求和：平凡算法
+//  数组求和算法
+// 算法1：平凡累加（链式）
 long long sum_chain_naive(int *arr, int n) {
     long long sum = 0;
     for (int i = 0; i < n; i++) {
@@ -47,7 +50,7 @@ long long sum_chain_naive(int *arr, int n) {
     return sum;
 }
 
-// 数组求和：两路链式（优化）
+// 算法2：两路链式累加（超标量优化）
 long long sum_chain_2way(int *arr, int n) {
     long long sum1 = 0, sum2 = 0;
     int i;
@@ -61,7 +64,7 @@ long long sum_chain_2way(int *arr, int n) {
     return sum1 + sum2;
 }
 
-// 数组求和：递归两路（优化）
+// 算法3：递归两路相加（分治）
 long long sum_recursive_2way(int *arr, int l, int r) {
     if (l == r) return arr[l];
     if (r == l + 1) return arr[l] + arr[r];
@@ -71,6 +74,45 @@ long long sum_recursive_2way(int *arr, int l, int r) {
 
 long long sum_recursive_wrapper(int *arr, int n) {
     return sum_recursive_2way(arr, 0, n - 1);
+}
+
+// 算法4：4路循环展开拓展
+long long sum_unroll_4way(int *arr, int n) {
+    long long sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+    int i;
+    for (i = 0; i < n - 3; i += 4) {
+        sum1 += arr[i];
+        sum2 += arr[i + 1];
+        sum3 += arr[i + 2];
+        sum4 += arr[i + 3];
+    }
+    // 处理剩余元素
+    for (; i < n; i++) {
+        sum1 += arr[i];
+    }
+    return sum1 + sum2 + sum3 + sum4;
+}
+
+// 算法5：8路循环展开拓展
+long long sum_unroll_8way(int *arr, int n) {
+    long long sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+    long long sum5 = 0, sum6 = 0, sum7 = 0, sum8 = 0;
+    int i;
+    for (i = 0; i < n - 7; i += 8) {
+        sum1 += arr[i];
+        sum2 += arr[i + 1];
+        sum3 += arr[i + 2];
+        sum4 += arr[i + 3];
+        sum5 += arr[i + 4];
+        sum6 += arr[i + 5];
+        sum7 += arr[i + 6];
+        sum8 += arr[i + 7];
+    }
+    // 处理剩余元素
+    for (; i < n; i++) {
+        sum1 += arr[i];
+    }
+    return sum1 + sum2 + sum3 + sum4 + sum5 + sum6 + sum7 + sum8;
 }
 
 int main() {
@@ -85,11 +127,11 @@ int main() {
     cout << "==================== 实验一 性能测试报告 ====================" << endl;
     cout << "重复测试次数：" << TEST_TIMES << endl << endl;
     
-    // 矩阵列-向量内积测试
+    // 矩阵列-向量内积测试 
     cout << "================ 矩阵列-向量内积性能测试 ================" << endl;
     cout << left << setw(12) << "矩阵规模" 
-         << setw(16) << "平凡算法(s)" 
-         << setw(16) << "Cache优化(s)" 
+         << setw(16) << "平凡算法(ms)" 
+         << setw(16) << "Cache优化(ms)" 
          << setw(12) << "加速比" 
          << setw(10) << "正确性" << endl;
     cout << string(66, '-') << endl;
@@ -111,7 +153,7 @@ int main() {
             }
         }
         
-        // 测试两种算法.
+        // 测试两种算法
         double t_naive = 0, t_opt = 0;
         for (int t = 0; t < TEST_TIMES; t++) {
             double start = get_time();
@@ -127,6 +169,7 @@ int main() {
         t_naive /= TEST_TIMES;
         t_opt /= TEST_TIMES;
         
+        // 正确性验证
         bool correct = true;
         for (int i = 0; i < N; i++) {
             if (res_naive[i] != res_opt[i] || res_naive[i] != N) {
@@ -136,8 +179,8 @@ int main() {
         }
         
         cout << left << setw(12) << N 
-             << setw(16) << fixed << setprecision(6) << t_naive
-             << setw(16) << fixed << setprecision(6) << t_opt
+             << setw(16) << fixed << setprecision(3) << (t_naive * 1000)
+             << setw(16) << fixed << setprecision(3) << (t_opt * 1000)
              << setw(12) << fixed << setprecision(2) << (t_naive / t_opt)
              << setw(10) << (correct ? "✓" : "✗") << endl;
         
@@ -147,14 +190,15 @@ int main() {
         free(res_opt);
     }
     
-    //  第二部分：数组求和测试
+    // 第二部分：数组求和测试
     cout << endl << "================ 数组求和性能测试 ================" << endl;
     cout << left << setw(14) << "数组长度" 
-         << setw(16) << "平凡累加(s)" 
-         << setw(16) << "两路链式(s)" 
-         << setw(16) << "递归两路(s)"
+         << setw(14) << "平凡累加(ms)" 
+         << setw(14) << "两路链式(ms)" 
+         << setw(14) << "递归(ms)"
+         << setw(14) << "4路展开(ms)"
          << setw(12) << "加速比" << endl;
-    cout << string(74, '-') << endl;
+    cout << string(82, '-') << endl;
     
     for (int idx = 0; idx < num_arr_sizes; idx++) {
         int n = arr_sizes[idx];
@@ -167,8 +211,8 @@ int main() {
             arr[i] = i;
         }
         
-        double t_chain = 0, t_2way = 0, t_rec = 0;
-        long long sum_chain, sum_2way, sum_rec;
+        double t_chain = 0, t_2way = 0, t_rec = 0, t_unroll4 = 0;
+        long long sum_chain, sum_2way, sum_rec, sum_unroll4;
         
         for (int t = 0; t < TEST_TIMES; t++) {
             double start = get_time();
@@ -182,20 +226,27 @@ int main() {
             start = get_time();
             sum_rec = sum_recursive_wrapper(arr, n);
             t_rec += get_time() - start;
+            
+            start = get_time();
+            sum_unroll4 = sum_unroll_4way(arr, n);
+            t_unroll4 += get_time() - start;
         }
         
         t_chain /= TEST_TIMES;
         t_2way /= TEST_TIMES;
         t_rec /= TEST_TIMES;
+        t_unroll4 /= TEST_TIMES;
         
         long long expect = (long long)n * (n - 1) / 2;
-        bool correct = (sum_chain == expect && sum_2way == expect && sum_rec == expect);
+        bool correct = (sum_chain == expect && sum_2way == expect && 
+                        sum_rec == expect && sum_unroll4 == expect);
         
         cout << left << setw(14) << n 
-             << setw(16) << fixed << setprecision(6) << t_chain
-             << setw(16) << fixed << setprecision(6) << t_2way
-             << setw(16) << fixed << setprecision(6) << t_rec
-             << setw(12) << fixed << setprecision(2) << (t_chain / t_2way)
+             << setw(14) << fixed << setprecision(3) << (t_chain * 1000)
+             << setw(14) << fixed << setprecision(3) << (t_2way * 1000)
+             << setw(14) << fixed << setprecision(3) << (t_rec * 1000)
+             << setw(14) << fixed << setprecision(3) << (t_unroll4 * 1000)
+             << setw(12) << fixed << setprecision(2) << (t_chain / t_unroll4)
              << (correct ? "✓" : "✗") << endl;
         
         free(arr);
